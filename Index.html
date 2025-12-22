@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Student Result Portal</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+body{font-family:Arial;background:#f4f6f9;margin:0}
+header{background:#1e90ff;color:#fff;text-align:center;padding:20px}
+.container{background:#fff;max-width:420px;margin:20px auto;padding:20px;border-radius:8px}
+input,button{width:100%;padding:12px;margin-top:10px;font-size:16px}
+button{background:#1e90ff;color:#fff;border:none;border-radius:5px}
+#resultBox{display:none;margin-top:15px;background:#eef;padding:15px;border-radius:5px}
+footer{text-align:center;font-size:12px;color:gray;padding:10px}
+</style>
+</head>
+<body>
+<header><h2>Student Result Portal</h2></header>
+<div class="container">
+<input id="studentId" placeholder="Enter Student ID">
+<button onclick="getResult()">View Result</button>
+<div id="resultBox"></div>
+</div>
+<footer>This result is provisional. Final decision rests with the board.</footer>
+
+<script>
+const API = "https://script.google.com/macros/s/AKfycbz-b80BEwF2ngPyCeU67WkiqRYUUapBc9aF2Cfs199jVnnvGYX-HB6tNMayPsG6TK-d/exec";
+let currentData;
+
+function getResult(){
+  const id = document.getElementById("studentId").value.trim();
+  if(!id){ alert("Please enter Student ID"); return; }
+
+  fetch(API+"?id="+encodeURIComponent(id))
+    .then(r=>r.json())
+    .then(d=>{
+      console.log(d);
+      if(d.error){document.getElementById("resultBox").innerHTML="❌ "+d.error; document.getElementById("resultBox").style.display="block"; return;}
+      currentData=d;
+      displayResult(d);
+    })
+    .catch(err=>{
+      console.error(err);
+      document.getElementById("resultBox").innerHTML="❌ Fetch Error";
+      document.getElementById("resultBox").style.display="block";
+    });
+}
+
+function displayResult(d){
+  let html=`<h3>${d.name}</h3>`;
+  html+=`DOB: ${d.dob}<br>Mobile: ${d.mobile}<br>Class: ${d.class}<br><br>`;
+  for(let s in d.subjects) html+=`${s}: ${d.subjects[s] ?? "N/A"}<br>`;
+  html+=`<b>Total:</b> ${d.total}<br><b>Percentage:</b> ${d.percentage}%<br><b>Grade:</b> ${d.grade}<br><b>Status:</b> ${d.status}<br><b>${d.eligible}</b><br><br>`;
+  html+=`<button onclick="pdf()">Download PDF</button>`;
+  document.getElementById("resultBox").style.display="block";
+  document.getElementById("resultBox").innerHTML=html;
+}
+
+function pdf(){
+  if(!currentData){ alert("Fetch result first"); return; }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  doc.text("OFFICIAL MARKSHEET",20,20);
+  doc.text("Name: "+currentData.name,20,30);
+  doc.text("DOB: "+currentData.dob,20,38);
+  doc.text("Mobile: "+currentData.mobile,20,46);
+  doc.text("Class: "+currentData.class,20,54);
+
+  let y=64;
+  for(let s in currentData.subjects){ doc.text(`${s}: ${currentData.subjects[s]}`,20,y); y+=8; }
+  doc.text("Total: "+currentData.total,20,y+8);
+  doc.text("Percentage: "+currentData.percentage+"%",20,y+16);
+  doc.text("Grade: "+currentData.grade,20,y+24);
+  doc.text("Status: "+currentData.status,20,y+32);
+  doc.text("Eligibility: "+currentData.eligible,20,y+40);
+
+  // Signature
+  doc.addImage("https://i.postimg.cc/BnGDNTx5/Screenshot-2025-11-05-16-59-17-20-3a637037d35f95c5dbcdcc75e697ce91.jpg","JPEG",140,150,40,15);
+  doc.text("Authorized Signature",140,168);
+
+  // Stamp
+  doc.addImage("https://i.postimg.cc/kXLwCRWM/20251022-095751.png","PNG",20,150,40,40);
+
+  doc.save(currentData.studentId+"_Result.pdf");
+}
+</script>
+
+</body>
+</html>
